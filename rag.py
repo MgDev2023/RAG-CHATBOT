@@ -1,11 +1,15 @@
+import os
+from dotenv import load_dotenv
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_ollama import ChatOllama
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_groq import ChatGroq
 
-print("🚀 Local RAG Chatbot Started")
+load_dotenv()
+
+print("🚀 RAG Chatbot Started (Groq)")
 
 # Load embeddings
-embeddings = HuggingFaceEmbeddings()
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 
 # Load vector DB
 db = FAISS.load_local(
@@ -16,20 +20,25 @@ db = FAISS.load_local(
 
 retriever = db.as_retriever()
 
-# Load Local LLM
-llm = ChatOllama(
-    model="mistral"
+# Load Groq LLM
+llm = ChatGroq(
+    model="llama-3.1-8b-instant",
+    api_key=os.environ.get("GROQ_API_KEY")
 )
 
 while True:
     query = input("\nAsk Question (type exit): ")
 
-    if query == "exit":
+    if query.strip().lower() == "exit":
         break
 
     docs = retriever.invoke(query)
 
-    context = docs[0].page_content
+    if not docs:
+        print("\nNo relevant documents found for your question.")
+        continue
+
+    context = "\n\n".join(doc.page_content for doc in docs)
 
     prompt = f"""
 Answer based only on the context.
